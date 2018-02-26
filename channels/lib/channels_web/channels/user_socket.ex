@@ -2,7 +2,7 @@ defmodule Elmix.ChannelsWeb.UserSocket do
   use Phoenix.Socket
 
   ## Channels
-  # channel "room:*", Elmix.ChannelsWeb.RoomChannel
+  channel "room:*", Elmix.ChannelsWeb.RoomChannel
 
   ## Transports
   transport :websocket, Phoenix.Transports.WebSocket

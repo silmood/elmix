@@ -1,5 +1,9 @@
 module Main exposing (..)
 
+import Phoenix
+import Phoenix.Socket as Socket
+import Phoenix.Channel as Channel
+import Json.Decode as Json
 import Html exposing (Html, text, div, h1, img)
 import Html.Attributes exposing (src)
 
@@ -19,14 +23,30 @@ init =
 
 ---- UPDATE ----
 
+socket : Socket.Socket msg
+socket = 
+    Socket.init "ws://localhost:4000/socket/websocket"
+
+channel : Channel.Channel Msg
+channel =
+    Channel.init "room:lobby"
+    |> Channel.on "new_msg" NewMsg
 
 type Msg
-    = NoOp
+    = NewMsg Json.Value
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     ( model, Cmd.none )
+
+
+---- SUBS ----
+
+subscriptions : Model -> Sub Msg
+subscriptions model = 
+    Phoenix.connect socket [channel]
 
 
 
@@ -51,5 +71,5 @@ main =
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
