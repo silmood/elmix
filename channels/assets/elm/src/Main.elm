@@ -6,7 +6,7 @@ import Phoenix.Channel as Channel
 import Json.Decode as Json
 import Html exposing (Html, Attribute, text, div, h1, img, h2, button, input, ul, li)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput, onSubmit)
+import Html.Events exposing (onInput, onSubmit, onClick)
 import Html.Attributes exposing (src)
 
 
@@ -25,6 +25,7 @@ type Stage
 
 type alias Room = 
     { name : String
+    , path : String
     , messages : List String
     }
 
@@ -38,7 +39,7 @@ initModel : Model
 initModel = 
     { stage = Login
     , channel = Maybe.Nothing
-    , room = { name = "", messages = [] }
+    , room = { name = "", path = "", messages = [] }
     }
 
 init : ( Model, Cmd Msg )
@@ -62,6 +63,7 @@ type Msg
     = RoomInput String
     | Online Json.Value
     | Enter
+    | Leave
     | NoOp
 
 
@@ -72,16 +74,18 @@ update msg model =
             let
                 oldRoom = model.room
                 updatedRoom =
-                    { oldRoom | name = roomPath ++ roomName }
+                    { oldRoom | path = roomPath ++ roomName, name = roomName }
             in
                 ({ model | room = updatedRoom }, Cmd.none)
         Enter ->
             let
-                connectedChannel = buildRoomChannel model.room.name
+                connectedChannel = buildRoomChannel model.room.path
             in
                 ({ model | channel = Just connectedChannel}, Cmd.none)
         Online _ ->
             ({ model | stage = Chat}, Cmd.none)
+        Leave ->
+            ({ model | stage = Login }, Cmd.none)
         _ ->
             ( model, Cmd.none )
 
@@ -133,6 +137,7 @@ chatView model =
       ] 
       [ chatMessagesView model
       , chatForm model
+      , button [ onClick Leave ] [ text "Leave" ]
       ]
 
 chatMessagesView : Model -> Html Msg
@@ -140,7 +145,8 @@ chatMessagesView model =
     div
       [
       ]
-      [ ul [] (List.map messageView model.room.messages)
+      [ h2 [] [ text ("Welcome to " ++ model.room.name) ]
+      , ul [] (List.map messageView model.room.messages)
       ]
 
 chatForm : Model -> Html Msg
