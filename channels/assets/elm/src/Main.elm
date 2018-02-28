@@ -4,7 +4,7 @@ import Phoenix
 import Phoenix.Socket as Socket
 import Phoenix.Channel as Channel
 import Json.Decode as Json
-import Html exposing (Html, Attribute, text, div, h1, img, h2, button, input)
+import Html exposing (Html, Attribute, text, div, h1, img, h2, button, input, ul, li)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput, onSubmit)
 import Html.Attributes exposing (src)
@@ -18,23 +18,27 @@ webSocketUrl = "ws://localhost:4000/socket/websocket"
 roomPath : String
 roomPath = "room:"
 
+
 type Stage
     = Login
-    | Room
+    | Chat
 
-type alias Model =
-    {
-        channel :  Maybe (Channel.Channel Msg),
-        stage: Stage,
-        room : String
+type alias Room = 
+    { name : String
+    , messages : List String
+    }
+
+type alias Model = 
+    { channel :  Maybe (Channel.Channel Msg)
+    , stage: Stage
+    , room : Room
     }
 
 initModel : Model
 initModel = 
-    {
-        stage = Login,
-        channel = Maybe.Nothing,
-        room = ""
+    { stage = Login
+    , channel = Maybe.Nothing
+    , room = { name = "", messages = [] }
     }
 
 init : ( Model, Cmd Msg )
@@ -49,14 +53,14 @@ socket : Socket.Socket msg
 socket = 
     Socket.init webSocketUrl
 
--- channel : Channel.Channel Msg
--- channel =
-    -- Channel.init "room:lobby"
-    -- |> Channel.on "new_msg" NewMsg
+buildRoomChannel : String -> Channel.Channel Msg
+buildRoomChannel room =
+    Channel.init room
+    |> Channel.onJoin Online
 
 type Msg
-    = NewMsg Json.Value
-    | RoomInput String
+    = RoomInput String
+    | Online Json.Value
     | Enter
     | NoOp
 
@@ -64,17 +68,22 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-      RoomInput roomName ->
-        ({ model | room = roomName}, Cmd.none)
-      Enter ->
-        let
-          connectedChannel = 
-            Channel.init model.room 
-            |> Channel.on "new_msg" NewMsg
-        in
-          ({ model | channel = Just connectedChannel}, Cmd.none)
-      _ ->
-        ( model, Cmd.none )
+        RoomInput roomName ->
+            let
+                oldRoom = model.room
+                updatedRoom =
+                    { oldRoom | name = roomPath ++ roomName }
+            in
+                ({ model | room = updatedRoom }, Cmd.none)
+        Enter ->
+            let
+                connectedChannel = buildRoomChannel model.room.name
+            in
+                ({ model | channel = Just connectedChannel}, Cmd.none)
+        Online _ ->
+            ({ model | stage = Chat}, Cmd.none)
+        _ ->
+            ( model, Cmd.none )
 
 
 ---- SUBS ----
@@ -98,7 +107,11 @@ connectChannel model =
 view : Model -> Html Msg
 view model =
     div [] [
-          loginForm model
+          case model.stage of
+              Login ->
+                loginForm model
+              Chat ->
+                chatView model
         ]
 
 
@@ -112,6 +125,36 @@ loginForm model =
                  ] []
         , button [] [ text "Enter" ]
         ]
+
+chatView : Model -> Html Msg
+chatView model =
+    div 
+      [ -- Attributes
+      ] 
+      [ chatMessagesView model
+      , chatForm model
+      ]
+
+chatMessagesView : Model -> Html Msg
+chatMessagesView model =
+    div
+      [
+      ]
+      [ ul [] (List.map messageView model.room.messages)
+      ]
+
+chatForm : Model -> Html Msg
+chatForm model =
+    Html.form
+      [
+      ]
+      [ input [ placeholder "Type message..." ] [] 
+      , button [] [ text "Send" ]
+      ]
+
+messageView : String -> Html Msg
+messageView message =
+    li [] [ text message ]
 
 
 ---- PROGRAM ----
