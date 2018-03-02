@@ -51,6 +51,24 @@ init : ( Model, Cmd Msg )
 init =
     ( initModel, Cmd.none )
 
+goLogin : Model -> Model
+goLogin model =
+    setStage model Login
+    |> clearMessages 
+
+
+setStage: Model -> Stage -> Model
+setStage model stg =
+    { model | stage = stg }
+
+clearMessages : Model -> Model
+clearMessages model =
+    { model | room = (setMessages model.room [])}
+
+setMessages : Room -> List String -> Room
+setMessages room msgs =
+    { room | messages = msgs }
+
 
 
 ---- UPDATE ----
@@ -81,12 +99,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         RoomInput roomName ->
-            let
-                oldRoom = model.room
-                updatedRoom =
-                    { oldRoom | path = roomPath ++ roomName, name = roomName }
-            in
-                { model | room = updatedRoom } ! []
+            { model | room = (updateRoomPath roomName model.room)  } ! []
 
         Enter ->
             let
@@ -101,30 +114,31 @@ update msg model =
             { model | typedMsg = ""} ! [ sendMsg model ]
 
         NewMsg payload ->
-            case Decode.decodeValue decodeNewMsg payload of
-                Ok msgReceived ->
-                    let
-                        oldRoom = 
-                            model.room
-
-                        messagesUpdated =
-                            List.append oldRoom.messages [msgReceived]
-
-                        roomUpdated =
-                            { oldRoom | messages = messagesUpdated}
-                    in
-                        ({ model | room = roomUpdated}, Cmd.none)
-                Err err ->
-                    model ! []
-
+            { model | room = (appendMsg model.room payload) } ! []
         Online _ ->
             { model | stage = Chat} ! []
 
         Leave ->
-            { model | stage = Login } ! []
-
+            (goLogin model) ! [] 
         _ ->
             model ! []
+
+updateRoomPath : String -> Room -> Room
+updateRoomPath name room =
+        { room | path = roomPath ++ name, name = name }
+
+appendMsg : Room -> Decode.Value ->  Room
+appendMsg room msg =
+    case Decode.decodeValue decodeNewMsg msg of
+        Ok msgReceived ->
+            let
+                messagesUpdated =
+                    List.append room.messages [msgReceived]
+            in
+                { room | messages = messagesUpdated}
+        Err err ->
+            room
+
 
 -- Decoder
 
